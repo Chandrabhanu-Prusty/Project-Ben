@@ -41,7 +41,7 @@ dependencies:
   shared_preferences: ^2.5.3
   flutter_tts: ^4.2.5
   record: ^6.2.1
-  permission_handler: ^13.0.2
+  permission_handler: ^11.3.1
   flutter_secure_storage: ^10.3.4
   url_launcher: ^6.3.2
   http: ^1.6.0
