@@ -8,7 +8,18 @@ class AiApiService {
   final SupabaseClient? _supabase;
 
   AiApiService({SupabaseClient? supabase})
-      : _supabase = AppConfig.isConfigured ? Supabase.instance.client : supabase;
+      : _supabase = supabase ?? _getSupabaseClient();
+
+  static SupabaseClient? _getSupabaseClient() {
+    try {
+      if (AppConfig.isConfigured) {
+        return Supabase.instance.client;
+      }
+    } catch (_) {
+      // Supabase instance not initialized
+    }
+    return null;
+  }
 
   /// Requests notification summary or answers a question about current notifications.
   Future<Map<String, dynamic>> requestAiResponse({
@@ -44,15 +55,25 @@ class AiApiService {
           }
         }
       } catch (_) {
-        // Fall back gracefully to local summary generator
+        // Fall back to direct Groq API or local heuristics
       }
     }
 
-    // 2. Local resilient fallback when Edge Function is offline or unconfigured
+    // 2. Direct Groq API fallback if edge function is not yet deployed
+    if (AppConfig.groqApiKey.isNotEmpty) {
+      final directResult = await _callGroqDirectly(
+        action: action,
+        query: query,
+        notifications: notifications,
+      );
+      if (directResult.isNotEmpty) return directResult;
+    }
+
+    // 3. Local resilient fallback when completely offline
     return _generateLocalSummary(action: action, query: query, notifications: notifications);
   }
 
-  /// Sends recorded audio to the transcribe-audio Edge Function.
+  /// Sends recorded audio to transcribe-audio Edge Function or Groq Whisper directly.
   Future<String> transcribeAudio(String audioFilePath) async {
     if (_supabase != null && _supabase.auth.currentSession != null) {
       try {
@@ -72,8 +93,110 @@ class AiApiService {
       } catch (_) {}
     }
 
-    // Fallback if offline
+    // Direct Whisper API fallback
+    if (AppConfig.groqApiKey.isNotEmpty) {
+      final text = await _transcribeWithGroqDirectly(audioFilePath);
+      if (text.isNotEmpty) return text;
+    }
+
     return 'What did I miss?';
+  }
+
+  /// Direct Groq API chat completions call
+  Future<Map<String, dynamic>> _callGroqDirectly({
+    required String action,
+    String? query,
+    required List<NotificationItem> notifications,
+  }) async {
+    try {
+      final notifJson = notifications.map((n) => {
+        'app_name': n.appName,
+        'sender_name': n.senderName,
+        'title': n.title,
+        'body': n.body,
+        'received_at': n.receivedAt,
+      }).toList();
+
+      final prompt = '''
+You are Ben, an intelligent mobile personal notification assistant with a futuristic Ben 10 personality.
+Your task is to summarize the user's notifications and answer their questions without making them open every application.
+
+Notifications context:
+${jsonEncode(notifJson)}
+
+User query:
+${query ?? "Summarize what notifications I missed and highlight what needs attention."}
+
+Instructions:
+1. Provide a concise, conversational summary identifying total counts, app breakdown, and important deadlines/reminders.
+2. Return STRICTLY valid JSON with format:
+{
+  "summary": "conversational summary string",
+  "priorities": [
+    {
+      "source": "App Name",
+      "priority": "high" | "normal" | "low",
+      "reason": "short explanation"
+    }
+  ],
+  "groups": [
+    {
+      "source": "App Name",
+      "count": 1,
+      "summary": "short summary"
+    }
+  ]
+}
+''';
+
+      final response = await http.post(
+        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        headers: {
+          'Authorization': 'Bearer ${AppConfig.groqApiKey}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'model': 'openai/gpt-oss-20b',
+          'messages': [
+            {'role': 'system', 'content': 'You are Ben, an AI notification assistant. Always respond in JSON.'},
+            {'role': 'user', 'content': prompt},
+          ],
+          'response_format': {'type': 'json_object'},
+          'temperature': 0.2,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+        return jsonDecode(content);
+      }
+    } catch (_) {}
+
+    return {};
+  }
+
+  /// Direct Whisper audio transcription call
+  Future<String> _transcribeWithGroqDirectly(String audioFilePath) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://api.groq.com/openai/v1/audio/transcriptions'),
+      );
+      request.headers['Authorization'] = 'Bearer ${AppConfig.groqApiKey}';
+      request.fields['model'] = 'whisper-large-v3-turbo';
+      request.fields['response_format'] = 'json';
+      request.files.add(await http.MultipartFile.fromPath('file', audioFilePath));
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['text'] as String? ?? '';
+      }
+    } catch (_) {}
+    return '';
   }
 
   /// Local heuristic summary builder guaranteed to work 100% offline.

@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Ben (Debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--dart-define=SUPABASE_URL=https://tikyjyokcrwqdkgjioxe.supabase.co",
+        "--dart-define=SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpa3lqeW9rY3J3cWRrZ2ppb3hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwOTEwNTksImV4cCI6MjEwODY2NzA1OX0.Gkb_YLOsZQXkdOBEUz4Dck24HNKLQiotwE52VuuIhD0",
+        "--dart-define=GROQ_API_KEY=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"
+      ]
+    },
+    {
+      "name": "Ben (Release)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "program": "lib/main.dart",
+      "args": [
+        "--dart-define=SUPABASE_URL=https://tikyjyokcrwqdkgjioxe.supabase.co",
+        "--dart-define=SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpa3lqeW9rY3J3cWRrZ2ppb3hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwOTEwNTksImV4cCI6MjEwODY2NzA1OX0.Gkb_YLOsZQXkdOBEUz4Dck24HNKLQiotwE52VuuIhD0",
+        "--dart-define=GROQ_API_KEY=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"
+      ]
+    }
+  ]
+}

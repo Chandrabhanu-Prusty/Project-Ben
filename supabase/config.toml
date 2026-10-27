@@ -1,4 +1,4 @@
-project_id = "ben-assistant"
+project_id = "tikyjyokcrwqdkgjioxe"
 
 [functions.ben-ai]
 verify_jwt = true
