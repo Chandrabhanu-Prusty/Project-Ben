@@ -106,3 +106,4 @@ Modern smartphone users receive dozens to hundreds of notifications every day ac
 - **Bridging Flutter & Native Android**: How to use MethodChannels and Android Services (`SYSTEM_ALERT_WINDOW`) to build UI components that live outside Flutter's view hierarchy.
 - **LLM Prompt Engineering with Structured JSON**: How to constrain AI outputs to strict schemas for seamless UI parsing and voice playback.
 - **Privacy-by-Design Architecture**: Storing sensitive notification data on-device with automated time-to-live (TTL) expiration rather than pushing raw personal data to cloud servers.
+
