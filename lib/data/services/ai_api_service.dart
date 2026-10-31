@@ -21,11 +21,25 @@ class AiApiService {
     return null;
   }
 
-  /// Requests notification summary or answers a question about current notifications.
+  static String _getWeekday(int weekday) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return days[(weekday - 1).clamp(0, 6)];
+  }
+
+  static String _getMonth(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[(month - 1).clamp(0, 11)];
+  }
+
+  /// Requests notification summary or answers ANY general/notification question.
   Future<Map<String, dynamic>> requestAiResponse({
     required String action, // 'summarize' or 'ask'
     String? query,
     required List<NotificationItem> notifications,
+    String honorific = 'Master',
   }) async {
     // 1. If Supabase is configured and user is authenticated, call the ben-ai Edge Function
     if (_supabase != null && _supabase.auth.currentSession != null) {
@@ -33,6 +47,7 @@ class AiApiService {
         final payload = {
           'action': action,
           'query': query,
+          'honorific': honorific,
           'notifications': notifications.map((n) => {
             'app_name': n.appName,
             'sender_name': n.senderName,
@@ -59,18 +74,24 @@ class AiApiService {
       }
     }
 
-    // 2. Direct Groq API fallback if edge function is not yet deployed
+    // 2. Direct Groq API fallback
     if (AppConfig.groqApiKey.isNotEmpty) {
       final directResult = await _callGroqDirectly(
         action: action,
         query: query,
         notifications: notifications,
+        honorific: honorific,
       );
       if (directResult.isNotEmpty) return directResult;
     }
 
     // 3. Local resilient fallback when completely offline
-    return _generateLocalSummary(action: action, query: query, notifications: notifications);
+    return _generateLocalSummary(
+      action: action,
+      query: query,
+      notifications: notifications,
+      honorific: honorific,
+    );
   }
 
   /// Sends recorded audio to transcribe-audio Edge Function or Groq Whisper directly.
@@ -107,6 +128,7 @@ class AiApiService {
     required String action,
     String? query,
     required List<NotificationItem> notifications,
+    String honorific = 'Master',
   }) async {
     try {
       final notifJson = notifications.map((n) => {
@@ -117,21 +139,34 @@ class AiApiService {
         'received_at': n.receivedAt,
       }).toList();
 
-      final prompt = '''
-You are Ben, an intelligent mobile personal notification assistant with a futuristic Ben 10 personality.
-Your task is to summarize the user's notifications and answer their questions without making them open every application.
+      final now = DateTime.now();
+      final hour12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
+      final ampm = now.hour >= 12 ? 'PM' : 'AM';
+      final timeStr = "$hour12:${now.minute.toString().padLeft(2, '0')} $ampm";
+      final dateStr = "${_getWeekday(now.weekday)}, ${_getMonth(now.month)} ${now.day}, ${now.year}";
 
-Notifications context:
+      final prompt = '''
+You are Ben, an intelligent, personal AI assistant with a loyal, sharp, sophisticated personality (similar to JARVIS or Siri).
+Current local device time: $timeStr ($dateStr).
+User's preferred title: $honorific.
+
+Always address the user respectfully using phrases like "Right away, $honorific", "Certainly, $honorific", "As requested, $honorific", "Here is what you missed, $honorific".
+
+Capabilities:
+1. General Assistant: You are NOT restricted to notifications. Answer ANY question the user asks (current time, date, simple math, general knowledge, advice, explanations, friendly greetings). If the user asks for the time or date, use the provided local time ($timeStr, $dateStr).
+2. Notifications & Emails: You have real-time access to the user's intercepted mobile notifications and emails below. If the user asks about emails, look for Gmail, Outlook, or Mail apps and tell them what emails they received, who sent them, and what the subjects are.
+
+Notifications & Emails context:
 ${jsonEncode(notifJson)}
 
 User query:
-${query ?? "Summarize what notifications I missed and highlight what needs attention."}
+${query ?? "Summarize what notifications and emails I missed and highlight what needs attention."}
 
 Instructions:
-1. Provide a concise, conversational summary identifying total counts, app breakdown, and important deadlines/reminders.
+1. Provide a direct, conversational, spoken-friendly response addressing the user as $honorific.
 2. Return STRICTLY valid JSON with format:
 {
-  "summary": "conversational summary string",
+  "summary": "conversational summary string addressing the user as $honorific",
   "priorities": [
     {
       "source": "App Name",
@@ -158,11 +193,14 @@ Instructions:
         body: jsonEncode({
           'model': 'openai/gpt-oss-20b',
           'messages': [
-            {'role': 'system', 'content': 'You are Ben, an AI notification assistant. Always respond in JSON.'},
+            {
+              'role': 'system',
+              'content': 'You are Ben, a personal AI assistant. Always address the user respectfully as $honorific and respond in JSON.'
+            },
             {'role': 'user', 'content': prompt},
           ],
           'response_format': {'type': 'json_object'},
-          'temperature': 0.2,
+          'temperature': 0.3,
         }),
       );
 
@@ -199,15 +237,74 @@ Instructions:
     return '';
   }
 
-  /// Local heuristic summary builder guaranteed to work 100% offline.
+  /// Local resilient fallback when completely offline.
   Map<String, dynamic> _generateLocalSummary({
     required String action,
     String? query,
     required List<NotificationItem> notifications,
+    String honorific = 'Master',
   }) {
+    final now = DateTime.now();
+    final hour12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
+    final ampm = now.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = "$hour12:${now.minute.toString().padLeft(2, '0')} $ampm";
+    final dateStr = "${_getWeekday(now.weekday)}, ${_getMonth(now.month)} ${now.day}, ${now.year}";
+
+    final q = (query ?? '').toLowerCase().trim();
+
+    // 1. Time query
+    if (q.contains('time') || q.contains('clock') || q.contains('what is the time')) {
+      return {
+        'summary': 'It is currently $timeStr, $honorific.',
+        'priorities': [],
+        'groups': [],
+      };
+    }
+
+    // 2. Date query
+    if (q.contains('date') || q.contains('today') || q.contains('day is it')) {
+      return {
+        'summary': 'Today is $dateStr, $honorific.',
+        'priorities': [],
+        'groups': [],
+      };
+    }
+
+    // 3. Email query
+    if (q.contains('email') || q.contains('mail') || q.contains('gmail') || q.contains('outlook')) {
+      final emails = notifications.where((n) {
+        final app = n.appName.toLowerCase();
+        return app.contains('mail') || app.contains('gmail') || app.contains('outlook');
+      }).toList();
+
+      if (emails.isEmpty) {
+        return {
+          'summary': 'You do not have any new email notifications at the moment, $honorific.',
+          'priorities': [],
+          'groups': [],
+        };
+      } else {
+        final emailDetails = emails.take(3).map((e) => '${e.senderName ?? e.appName}: ${e.title ?? e.body ?? ""}').join('. ');
+        return {
+          'summary': 'You have ${emails.length} email notifications, $honorific. Latest: $emailDetails',
+          'priorities': [],
+          'groups': [],
+        };
+      }
+    }
+
+    // 4. Greeting query
+    if (q.contains('hello') || q.contains('hi') || q.contains('hey') || q.contains('who are you')) {
+      return {
+        'summary': 'Greetings, $honorific. I am Ben, your personal assistant. How may I serve you today?',
+        'priorities': [],
+        'groups': [],
+      };
+    }
+
     if (notifications.isEmpty) {
       return {
-        'summary': "You have no new notifications right now. You're completely caught up!",
+        'summary': "You have no new notifications right now, $honorific. You're completely caught up!",
         'priorities': [],
         'groups': [],
       };
@@ -229,19 +326,10 @@ Instructions:
     if (highPriority.isNotEmpty) {
       final sample = highPriority.first;
       summaryText =
-          'You have $total new notifications: $appBreakdown. At least ${highPriority.length} appear urgent because of keywords in ${sample.appName}. Would you like me to read the important items first?';
+          'You have $total new notifications, $honorific: $appBreakdown. At least ${highPriority.length} appear urgent in ${sample.appName}.';
     } else {
       summaryText =
-          'You have $total new notifications: $appBreakdown. None currently appear urgent. Would you like a detailed breakdown?';
-    }
-
-    if (query != null && query.toLowerCase().contains('email')) {
-      final emails = notifications.where((n) => n.appName.toLowerCase().contains('mail')).toList();
-      if (emails.isEmpty) {
-        summaryText = "You don't have any new email notifications at the moment.";
-      } else {
-        summaryText = "You have ${emails.length} email notifications. ${emails.first.title ?? emails.first.body ?? ''}";
-      }
+          'You have $total new notifications, $honorific: $appBreakdown. None currently appear urgent.';
     }
 
     return {

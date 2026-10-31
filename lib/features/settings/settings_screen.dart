@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/services/notification_bridge.dart';
 import '../../data/services/overlay_service.dart';
+import '../../state/assistant_state.dart';
 import '../../state/auth_state.dart';
 import '../../state/notification_state.dart';
 
@@ -100,9 +101,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _showChangePasswordDialog() async {
+    final passwordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.forestCharcoal,
+        title: const Text('Change Password', style: TextStyle(color: AppColors.softWhite)),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: passwordController,
+            obscureText: true,
+            style: const TextStyle(color: AppColors.softWhite),
+            decoration: const InputDecoration(
+              labelText: 'New Password',
+              hintText: 'Enter at least 6 characters',
+            ),
+            validator: (v) => v == null || v.length < 6 ? 'Password must be at least 6 characters' : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedGrey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.neonGreen,
+              foregroundColor: AppColors.deepBlack,
+            ),
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx, true);
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await context.read<AuthStateController>().changePassword(passwordController.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success ? 'Password updated successfully in Supabase!' : 'Failed to update password',
+            ),
+            backgroundColor: success ? AppColors.neonGreen : AppColors.alertRed,
+          ),
+        );
+      }
+    }
+    passwordController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStateController>();
+    final assistant = context.watch<AssistantStateController>();
     final notifState = context.read<NotificationStateController>();
     final isAndroid = !kIsWeb && Platform.isAndroid;
 
@@ -166,6 +227,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.neonGreen,
+                        side: const BorderSide(color: AppColors.neonGreen),
+                      ),
+                      icon: const Icon(Icons.lock_reset, size: 18),
+                      label: const Text('Change Password'),
+                      onPressed: _showChangePasswordDialog,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.alertRed,
                         side: const BorderSide(color: AppColors.alertRed),
                       ),
@@ -173,6 +247,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: const Text('Sign Out'),
                       onPressed: _confirmSignOut,
                     ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Personalization Section
+            _buildSectionHeader('Personalization'),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.forestCharcoal,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.subtleGreenGrey),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Preferred Title / Salutation',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.softWhite),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'How Ben addresses you when speaking ("Master", "Sir", "Ma\'am").',
+                    style: TextStyle(fontSize: 12, color: AppColors.mutedGrey),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: ['Master', 'Sir', "Ma'am"].map((title) {
+                      final isSelected = assistant.honorific == title;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(title),
+                          selected: isSelected,
+                          selectedColor: AppColors.neonGreen,
+                          backgroundColor: AppColors.darkSlateGreen,
+                          labelStyle: TextStyle(
+                            color: isSelected ? AppColors.deepBlack : AppColors.softWhite,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          onSelected: (_) {
+                            context.read<AssistantStateController>().setHonorific(title);
+                          },
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
@@ -200,7 +323,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.softWhite),
                       ),
                       subtitle: const Text(
-                        'Keep Ben visible over other apps. Drag to reposition.',
+                        'Keep Ben visible over other apps. Tap to speak directly with Ben outside the app.',
                         style: TextStyle(fontSize: 12, color: AppColors.mutedGrey),
                       ),
                       activeColor: AppColors.neonGreen,
@@ -329,7 +452,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 24),
             const Center(
               child: Text(
-                'Ben v1.0 • Dark Theme Omnitrix Edition',
+                'Ben v1.0 • Personal Notification & Voice Assistant',
                 style: TextStyle(fontSize: 12, color: AppColors.disabledText),
               ),
             ),

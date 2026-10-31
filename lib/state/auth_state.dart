@@ -167,6 +167,10 @@ class AuthStateController extends ChangeNotifier {
     }
   }
 
+  Future<bool> changePassword(String newPassword) async {
+    return resetPassword(newPassword);
+  }
+
   Future<void> signOut() async {
     _setLoading(true);
     final previousUserId = userId;

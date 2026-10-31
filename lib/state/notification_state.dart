@@ -39,6 +39,7 @@ class NotificationStateController extends ChangeNotifier {
     if (userId != null) {
       loadNotifications();
       _startStreamListener();
+      syncActiveNotifications();
     } else {
       _streamSub?.cancel();
       _notifications = [];
@@ -46,6 +47,22 @@ class NotificationStateController extends ChangeNotifier {
       _appCounts = {};
       notifyListeners();
     }
+  }
+
+  /// Syncs currently active notifications (including existing emails) from Android status bar.
+  Future<void> syncActiveNotifications() async {
+    if (_currentUserId == null) return;
+    try {
+      final activeList = await NotificationBridge.getActiveNotifications();
+      for (final data in activeList) {
+        final item = NotificationBridge.parseNotificationEvent(data, _currentUserId!);
+        if (item != null) {
+          final classified = classifyLocalPriority(item.title, item.body);
+          await _repository.saveNotification(item.copyWith(priority: classified));
+        }
+      }
+      await loadNotifications(silent: true);
+    } catch (_) {}
   }
 
   void _startStreamListener() {

@@ -14,7 +14,7 @@ class PrivacyIntroductionScreen extends StatelessWidget {
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,7 +32,7 @@ class PrivacyIntroductionScreen extends StatelessWidget {
                 'Before enabling notification access, review our transparent privacy commitments.',
                 style: TextStyle(fontSize: 14, color: AppColors.mutedGrey, height: 1.4),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
               // Feature cards
               _buildPrivacyCard(
@@ -57,18 +57,20 @@ class PrivacyIntroductionScreen extends StatelessWidget {
                 description:
                     'When you ask Ben for a summary, only the necessary message previews are securely transmitted to the AI API. Full message content is never stored in server logs.',
               ),
-
-              const Spacer(),
-
-              BenButton(
-                text: 'I Understand & Continue',
-                type: BenButtonType.primary,
-                onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/onboarding/permissions');
-                },
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
             ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: BenButton(
+            text: 'I Understand & Continue',
+            type: BenButtonType.primary,
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/onboarding/permissions');
+            },
           ),
         ),
       ),
@@ -106,12 +108,12 @@ class PrivacyIntroductionScreen extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppColors.softWhite,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   description,
                   style: const TextStyle(

@@ -12,30 +12,15 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _emailPasswordController = TextEditingController();
-
-  final _phoneController = TextEditingController();
-  final _phonePasswordController = TextEditingController();
-
   final _formKeyEmail = GlobalKey<FormState>();
-  final _formKeyPhone = GlobalKey<FormState>();
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _emailController.dispose();
     _emailPasswordController.dispose();
-    _phoneController.dispose();
-    _phonePasswordController.dispose();
     super.dispose();
   }
 
@@ -54,18 +39,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final success = await auth.signInWithEmail(
       _emailController.text.trim(),
       _emailPasswordController.text,
-    );
-    if (success && mounted) {
-      _onLoginSuccess();
-    }
-  }
-
-  Future<void> _loginPhone() async {
-    if (!_formKeyPhone.currentState!.validate()) return;
-    final auth = context.read<AuthStateController>();
-    final success = await auth.signInWithPhone(
-      _phoneController.text.trim(),
-      _phonePasswordController.text,
     );
     if (success && mounted) {
       _onLoginSuccess();
@@ -135,31 +108,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
               const SizedBox(height: 20),
 
-              // Tab Bar for Email / Phone
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.darkSlateGreen,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  indicator: BoxDecoration(
-                    color: AppColors.neonGreen,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  labelColor: AppColors.deepBlack,
-                  unselectedLabelColor: AppColors.mutedGrey,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  tabs: const [
-                    Tab(text: 'Email'),
-                    Tab(text: 'Mobile Number'),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
               if (auth.errorMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -184,88 +132,43 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 const SizedBox(height: 16),
               ],
 
-              // Forms inside animated tab view
-              SizedBox(
-                height: 250,
-                child: TabBarView(
-                  controller: _tabController,
+              // Email Form
+              Form(
+                key: _formKeyEmail,
+                child: Column(
                   children: [
-                    // Email Form
-                    Form(
-                      key: _formKeyEmail,
-                      child: Column(
-                        children: [
-                          BenTextField(
-                            controller: _emailController,
-                            label: 'Email Address',
-                            hint: 'your.name@example.com',
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (v) => v == null || !v.contains('@') ? 'Enter a valid email' : null,
-                          ),
-                          const SizedBox(height: 14),
-                          BenTextField(
-                            controller: _emailPasswordController,
-                            label: 'Password',
-                            isPassword: true,
-                            validator: (v) => v == null || v.length < 6 ? 'Password must be at least 6 characters' : null,
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () => Navigator.pushNamed(context, '/auth/forgot-password'),
-                              child: const Text('Forgot Password?', style: TextStyle(fontSize: 12)),
-                            ),
-                          ),
-                        ],
-                      ),
+                    BenTextField(
+                      controller: _emailController,
+                      label: 'Email Address',
+                      hint: 'your.name@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) => v == null || !v.contains('@') ? 'Enter a valid email' : null,
                     ),
-
-                    // Phone Form
-                    Form(
-                      key: _formKeyPhone,
-                      child: Column(
-                        children: [
-                          BenTextField(
-                            controller: _phoneController,
-                            label: 'Mobile Number (with country code)',
-                            hint: '+919876543210',
-                            keyboardType: TextInputType.phone,
-                            validator: (v) => v == null || v.length < 8 ? 'Enter a valid phone number' : null,
-                          ),
-                          const SizedBox(height: 14),
-                          BenTextField(
-                            controller: _phonePasswordController,
-                            label: 'Password',
-                            isPassword: true,
-                            validator: (v) => v == null || v.length < 6 ? 'Password must be at least 6 characters' : null,
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () => Navigator.pushNamed(context, '/auth/forgot-password'),
-                              child: const Text('Forgot Password?', style: TextStyle(fontSize: 12)),
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 14),
+                    BenTextField(
+                      controller: _emailPasswordController,
+                      label: 'Password',
+                      isPassword: true,
+                      validator: (v) => v == null || v.length < 6 ? 'Password must be at least 6 characters' : null,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.pushNamed(context, '/auth/forgot-password'),
+                        child: const Text('Forgot Password?', style: TextStyle(fontSize: 12)),
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
               BenButton(
                 text: 'Log In',
                 type: BenButtonType.primary,
                 isLoading: auth.isLoading,
-                onPressed: () {
-                  if (_tabController.index == 0) {
-                    _loginEmail();
-                  } else {
-                    _loginPhone();
-                  }
-                },
+                onPressed: _loginEmail,
               ),
 
               const SizedBox(height: 24),

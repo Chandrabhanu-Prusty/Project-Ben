@@ -85,21 +85,10 @@ class _SpeakingIndicatorState extends State<SpeakingIndicator>
                     ]
                   : null,
             ),
-            child: Center(
-              child: Container(
-                width: widget.size * 0.45,
-                height: widget.size * 0.45,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: active ? AppColors.neonGreen : AppColors.softGreen,
-                ),
-                child: active
-                    ? const Icon(
-                        Icons.graphic_eq,
-                        size: 14,
-                        color: AppColors.deepBlack,
-                      )
-                    : null,
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/omnitrix_logo.jpg',
+                fit: BoxFit.cover,
               ),
             ),
           ),

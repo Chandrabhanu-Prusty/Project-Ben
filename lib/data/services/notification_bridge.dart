@@ -25,6 +25,18 @@ class NotificationBridge {
     } catch (_) {}
   }
 
+  /// Fetches all active notifications currently sitting in the Android status bar/notification shade.
+  static Future<List<Map<String, dynamic>>> getActiveNotifications() async {
+    if (kIsWeb) return [];
+    try {
+      final List? list = await _methodChannel.invokeMethod<List>('getActiveNotifications');
+      if (list != null) {
+        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
   /// Listens to live notification events from the native Android NotificationListenerService.
   static Stream<Map<String, dynamic>> get incomingNotificationStream {
     if (kIsWeb) return const Stream.empty();

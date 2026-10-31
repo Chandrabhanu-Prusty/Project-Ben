@@ -159,7 +159,7 @@ class AuthRepository {
 
     return await _client.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: kIsWeb ? null : 'com.example.ben://login-callback',
+      redirectTo: kIsWeb ? null : 'com.example.project_ben://login-callback',
     );
   }
 

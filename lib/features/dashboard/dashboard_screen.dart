@@ -126,21 +126,21 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         title: Row(
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.darkSlateGreen,
-                border: Border.all(color: AppColors.neonGreen, width: 1.5),
-              ),
-              child: const Center(
-                child: Text(
-                  '10',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.neonGreen,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.neonGreen.withAlpha(100),
+                    blurRadius: 8,
                   ),
+                ],
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/omnitrix_logo.jpg',
+                  fit: BoxFit.cover,
                 ),
               ),
             ),

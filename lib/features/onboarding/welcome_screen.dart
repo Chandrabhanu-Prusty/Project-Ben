@@ -18,24 +18,22 @@ class WelcomeScreen extends StatelessWidget {
               const Spacer(),
               // Icon branding
               Container(
-                width: 90,
-                height: 90,
+                width: 105,
+                height: 105,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.forestCharcoal,
-                  border: Border.all(color: AppColors.neonGreen, width: 2.5),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.neonGreen.withAlpha(70),
-                      blurRadius: 24,
+                      color: AppColors.neonGreen.withAlpha(120),
+                      blurRadius: 28,
+                      spreadRadius: 2,
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.notifications_active_outlined,
-                    size: 42,
-                    color: AppColors.neonGreen,
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/omnitrix_logo.jpg',
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),

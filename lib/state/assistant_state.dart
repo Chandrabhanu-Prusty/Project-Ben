@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/chat_message.dart';
 import '../data/models/conversation.dart';
 import '../data/models/notification_item.dart';
@@ -19,6 +20,7 @@ class AssistantStateController extends ChangeNotifier {
   bool _isLoading = false;
   bool _isRecordingVoice = false;
   String? _errorMessage;
+  String _honorific = 'Master';
 
   AssistantStateController({
     ConversationRepository? conversationRepository,
@@ -28,7 +30,9 @@ class AssistantStateController extends ChangeNotifier {
   })  : _conversationRepository = conversationRepository ?? ConversationRepository(),
         _aiApiService = aiApiService ?? AiApiService(),
         _recordingService = recordingService ?? AudioRecordingService(),
-        _speechService = speechService ?? SpeechService();
+        _speechService = speechService ?? SpeechService() {
+    _loadHonorific();
+  }
 
   Conversation? get activeConversation => _activeConversation;
   List<ChatMessage> get messages => _messages;
@@ -36,6 +40,20 @@ class AssistantStateController extends ChangeNotifier {
   bool get isRecordingVoice => _isRecordingVoice;
   String? get errorMessage => _errorMessage;
   bool get isSpeaking => _speechService.isSpeaking;
+  String get honorific => _honorific;
+
+  Future<void> _loadHonorific() async {
+    final prefs = await SharedPreferences.getInstance();
+    _honorific = prefs.getString('user_honorific') ?? 'Master';
+    notifyListeners();
+  }
+
+  Future<void> setHonorific(String newHonorific) async {
+    _honorific = newHonorific;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_honorific', newHonorific);
+    notifyListeners();
+  }
 
   void setUserId(String? userId) {
     if (_currentUserId == userId) return;
@@ -84,7 +102,7 @@ class AssistantStateController extends ChangeNotifier {
     }
   }
 
-  /// Sends a user message, calls AI, and stores both in local SQLite.
+  /// Sends a user message, calls AI, speaks the response aloud automatically, and stores both in local SQLite.
   Future<void> sendMessage(String text, List<NotificationItem> notifications) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || _currentUserId == null) return;
@@ -113,11 +131,12 @@ class AssistantStateController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 2. Call AI backend / local heuristic
+      // 2. Call AI backend / local heuristic with honorific
       final aiResult = await _aiApiService.requestAiResponse(
         action: 'ask',
         query: trimmed,
         notifications: notifications,
+        honorific: _honorific,
       );
 
       final replyContent = aiResult['summary'] as String? ??
@@ -133,6 +152,9 @@ class AssistantStateController extends ChangeNotifier {
       );
       _messages.add(assistantMsg);
       await _conversationRepository.addMessage(assistantMsg);
+
+      // 4. Auto-speak the response immediately for voice-to-voice flow!
+      await _speechService.speak(replyContent);
 
       _errorMessage = null;
     } catch (e) {
@@ -169,7 +191,8 @@ class AssistantStateController extends ChangeNotifier {
         }
       }
     } else {
-      // Start recording
+      // Stop any active speech before recording starts
+      _speechService.stop();
       final started = await _recordingService.startRecording();
       if (started) {
         _isRecordingVoice = true;

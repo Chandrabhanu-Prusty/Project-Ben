@@ -37,6 +37,11 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
 
+                "getActiveNotifications" -> {
+                    val list = BenNotificationListenerService.getActiveNotificationsList()
+                    result.success(list)
+                }
+
                 else -> result.notImplemented()
             }
         }
